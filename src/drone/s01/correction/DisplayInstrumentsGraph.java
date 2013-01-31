@@ -29,7 +29,7 @@ public class DisplayInstrumentsGraph {
 		// 1- init swing objects
 		jFrame = new JFrame(DisplayInstruments.class.toString());
 		jPanel = new JPanel();
-		jPanel.setLayout(new GridLayout(4, 1));
+		jPanel.setLayout(new GridLayout(5, 1));
 		
 		graphPanels = new ArrayList<GraphPanel>();
 		int nVal = 128;
