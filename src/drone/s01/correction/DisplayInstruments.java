@@ -1,69 +1,78 @@
 package drone.s01.correction;
 
 import java.awt.Dimension;
-import java.awt.image.BufferedImage;
 
 import javax.swing.JFrame;
 import javax.swing.JPanel;
+import javax.swing.JTextArea;
 import javax.swing.border.EtchedBorder;
 import javax.swing.border.TitledBorder;
 
 import com.shigeodayo.ardrone.ARDrone;
-import com.shigeodayo.ardrone.video.ImageListener;
+import com.shigeodayo.ardrone.navdata.javadrone.NavData;
+import com.shigeodayo.ardrone.navdata.javadrone.NavDataListener;
 
-import drone.utils.image.ImagePanel;
 
-public class DisplayVideo {
 
+public class DisplayInstruments {
 
 	private ARDrone ardrone;
 	private JFrame jFrame;
 	private JPanel jPanel;
-	private ImagePanel imagePanel;
-
-
-	private DisplayVideo(){
-		//1- init swing objects
-		jFrame = new JFrame("DisplayVideo");
+	private JTextArea jText;
+	
+	public DisplayInstruments(){
+		// 1- init swing objects
+		jFrame = new JFrame(DisplayInstruments.class.toString());
 		jPanel = new JPanel();
-		imagePanel = new ImagePanel("data/drone.jpg");
-
-
-		//2- add stuff to panel and panel to frame
-		jPanel.add(imagePanel);
-		jPanel.setBorder(new TitledBorder(new EtchedBorder(),"videopanel"));
-		jPanel.setPreferredSize(new Dimension(640,480));
+		jText = new JTextArea("Wait for init drone");
+		jText.setEditable(false);
+		
+		// 2- add stuff to panel and panel to window
+		jPanel.add(jText);
 		jFrame.add(jPanel);
-
-		//3- Display the window.
+		jPanel.setBorder(new TitledBorder(new EtchedBorder(),"instruments"));
+		jPanel.setPreferredSize(new Dimension(600,800));
+		
+		// 3- display window
 		jFrame.pack();
 		jFrame.setVisible(true);
-
+		
+		// eventually blocking code, launch in a seperate thread
 		Thread thread = new Thread(new Runnable() {
-
+			
 			@Override
 			public void run() {
-				//4- init drone
+				// 4- init drone
 				initDrone();
-
-				//5- bind image panel to the drone
-				bindImagePanel();
+				jText.setText("Drone init finished");
+				
+				// 5- listen to drone instruments
+				ardrone.addNavDataListener(new NavDataListener() {
+					@Override
+					public void navDataUpdated(NavData navData) {
+						jText.setText(navData.toDetailString());
+					}
+				});
 			}
 		});
 		thread.start();
-
-
+		
+		
 
 	}
-
+	
+	
+	
 	public static void main(String[] args) {
 		javax.swing.SwingUtilities.invokeLater(new Runnable() {
 			public void run() {
-				new DisplayVideo();
+				new DisplayInstruments();
 			}
 		});
 	}
 
+	
 	private void initDrone(){
 		ardrone=new ARDrone("192.168.1.1");
 		System.out.println("connect drone controller");
@@ -76,14 +85,5 @@ public class DisplayVideo {
 		ardrone.start();
 		ardrone.setMaxAltitude(5000); 
 	}
-
-	private void bindImagePanel(){
-		ardrone.addImageUpdateListener(new ImageListener() {
-			@Override
-			public void imageUpdated(BufferedImage image) {
-				imagePanel.setImage(image);
-			}
-		});
-	}
-
+	
 }

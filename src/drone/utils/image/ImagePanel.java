@@ -15,7 +15,7 @@ import javax.swing.JPanel;
 public class ImagePanel extends JPanel{
 
 	private BufferedImage image;
-	
+
 	public void setImage(BufferedImage image){
 		this.image = image;
 		repaint();
@@ -35,11 +35,17 @@ public class ImagePanel extends JPanel{
 		resetDim();
 	}
 
-	
+
+	public ImagePanel(int w,int h) {
+		image = new BufferedImage(w, h, BufferedImage.TYPE_INT_RGB);        
+		resetDim();
+	}
+
+
 	public void resetDim(){
 		this.setPreferredSize(new Dimension(image.getWidth(), image.getHeight()));
 	}
-	
+
 	@Override
 	public void paintComponent(Graphics g){
 		super.paintComponent(g);
