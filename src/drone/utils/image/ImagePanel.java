@@ -55,4 +55,7 @@ public class ImagePanel extends JPanel{
 		g2d.drawImage(image, AffineTransform.getScaleInstance(scaleX,scaleY), this);
 	}
 
+	public BufferedImage getImage(){
+		return image;
+	}
 }
