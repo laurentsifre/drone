@@ -107,6 +107,9 @@ public class ThresholdedHueDistance implements ImageStreamListener{
 		}
 		imageStream.notifyListeners(imOut);
 		
+		//FloatImg imgcc = ConnexComponentExtractor.extract(distanceImage, 2);
+		//view.distanceThres(imgcc.toBufferedImageBW(0));
+		
 		return distanceImage;
 	}
 

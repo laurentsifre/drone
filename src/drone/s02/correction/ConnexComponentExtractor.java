@@ -6,6 +6,11 @@ package drone.s02.correction;
 
 
 
+import java.awt.image.BufferedImage;
+import java.util.ArrayList;
+import java.util.List;
+
+
 import drone.utils.image.FloatImg;
 
 /**
@@ -13,11 +18,18 @@ import drone.utils.image.FloatImg;
  * @author lolosifre
  */
 public class ConnexComponentExtractor {
-	
-	
+
+	private View view;
+
 	public interface View {
-		// TODO
+		public void setAllCCImage(BufferedImage image);
+		public void setLargestCCImage(BufferedImage image);
 	}
+
+	public ConnexComponentExtractor(View view){
+		this.view = view;
+	}
+
 
 	public static int mod(int a, int b){
 		return (a>=0) ? a%b : (b-((-a)%b))%b ; // true modulus operator
@@ -43,7 +55,7 @@ public class ConnexComponentExtractor {
 		}
 	}
 
-	public static FloatImg dilate4(FloatImg targetBinaryImage, int channelId){
+	public FloatImg dilate4(FloatImg targetBinaryImage, int channelId){
 		// not in place but n4
 		int w = targetBinaryImage.getW();
 		int h = targetBinaryImage.getH();
@@ -70,103 +82,77 @@ public class ConnexComponentExtractor {
 		return dilatedImg;
 	}
 
-	public static FloatImg extract(FloatImg targetBinaryImage, int channelId){
+	public FloatImg extractNew(FloatImg targetBinaryImage, int channelId){
 
 		int w = targetBinaryImage.getW();
 		int h = targetBinaryImage.getH();
-		int d = targetBinaryImage.getD();
+		
 
-		float[] targetValues = targetBinaryImage.getValues();
-
-
-		int maxLabel = 10000;
-		int[] equivalentLabel = new int[maxLabel];
-		int biggerLabel = 1;
-		int dcc = 1;
-		FloatImg cc = new FloatImg(w, h, dcc);
-		float[] ccval = cc.getValues();
-
-		for (int y=0; y<h; y++){
-			for (int x=0; x<w; x++){
-				//float val = targetBinaryImage.getValueAt(x, y, channelId);
-				float val = targetValues[channelId + d*(x+w*y)];
-				if (val == 1){
-					// check previous neighbor labeling
-					int nx = mod(x-1, w);
-					int ny = mod(y-1, h);
-					float nlab1 = ccval[ dcc*(nx+w*y) ];
-					float nlab2 = ccval[ dcc*(x+w*ny) ];
-					int numberOfLabeledNeighbor=0;
-					if (nlab1>0) numberOfLabeledNeighbor++;
-					if (nlab2>0) numberOfLabeledNeighbor++;
-
-					// first pass
-					switch (numberOfLabeledNeighbor){
-					case 0:
-						// neighbors are not labeled :
-						// assign to a new label.
-						ccval[dcc*(x+w*y)] = biggerLabel;
-						equivalentLabel[biggerLabel] = biggerLabel;
-						biggerLabel++;
+		FloatImg ccIm = new FloatImg(w, h, 2);
+		List<Integer> labelGraph = new ArrayList<Integer>();
+		labelGraph.add(new Integer(-1));
+		// first pass
+		for (int y=1; y<h; y++){
+			for (int x=1; x<w; x++){
+				if (targetBinaryImage.getValueAt(x, y, channelId)==1){
+					int upLabel = (int) ccIm.getValueAt(x, y-1, 0);
+					int leftLabel = (int) ccIm.getValueAt(x-1, y, 0);
+					int smallerLabel = (upLabel<leftLabel)?upLabel:leftLabel;
+					int biggerLabel = (upLabel>=leftLabel)?upLabel:leftLabel;
+					int numberOfLabeledNeighbor = 0;
+					if (smallerLabel>0) numberOfLabeledNeighbor++;
+					if (biggerLabel>0) numberOfLabeledNeighbor++;
+					switch (numberOfLabeledNeighbor) {
+					case 0: 
+						int newLabel = labelGraph.size();
+						ccIm.setValueAt(x, y, 0, newLabel);
+						labelGraph.add(new Integer(newLabel));
 						break;
 					case 1:
-						// one neighbor is labeled :
-						// assign to its label.
-						float nlab = (nlab1>0) ? nlab1 : nlab2;
-						ccval[dcc*(x+w*y)] = nlab;
+						ccIm.setValueAt(x, y, 0, new Integer(biggerLabel));
 						break;
-					case 2:
-						// two neigbors are labeled :
-						// assign to the smallest
-						// put equivalent relationship if needed
-						float nlabSmaller = (nlab1<=nlab2) ? nlab1 : nlab2;
-						float nlabBigger  = (nlab1<=nlab2) ? nlab2 : nlab1;
-						ccval[dcc*(x+w*y)] = nlabSmaller;
-						if (nlabBigger>nlabSmaller){
-							equivalentLabel[(int) nlabBigger] = (int)(nlabSmaller);
-						}
-						// TODO CHECK
-					}// end switch
-				}// end if
-			}//end for x
-		}// end for y
-		// find the unique class representant (the smallest)
-		for (int c =1; c<biggerLabel +1; c++){
-			int cmin = c;
-			while (equivalentLabel[cmin]< cmin){
-				cmin = equivalentLabel[cmin];
-			}
-			equivalentLabel[c]= cmin;
 
-		}
-		// second pass : assing label to smallest representant
-		// and class count
-		int[] classCount = new int[equivalentLabel.length];
-		for (int y=0; y<h; y++)
-			for (int x=0; x<w; x++){
-				int lab = (int) ccval[dcc*(x+w*y)];
-				int smalletRepresentant = equivalentLabel[lab];
-				ccval[dcc*(x+w*y)] = smalletRepresentant;
-				classCount[smalletRepresentant]++;
-			}
-		// find max
-		int maxClassCount = 0;
-		int iMaxClassCount = -1;
-		for (int c =1; c<classCount.length;c++){
-			if (classCount[c]>maxClassCount){
-				maxClassCount = classCount[c];
-				iMaxClassCount = c;
-			}
-		}
-		// third pass :
-			// keep only largest connex component.
-			for (int y=0; y<h; y++)
-				for (int x=0; x<w; x++){
-					int c = (int) cc.getValueAt(x, y, 0);
-					if (c!= iMaxClassCount){
-						ccval[dcc*(x+w*y)]= 0;
+					case 2:
+						// set all sons of larger label to the greater son of smaller label
+						int smallerSonOfSmallerLabel = getSmallerSon(labelGraph, smallerLabel);
+						setAllSon(labelGraph, biggerLabel, smallerSonOfSmallerLabel);
+						setAllSon(labelGraph, smallerLabel, smallerSonOfSmallerLabel);
+						ccIm.setValueAt(x, y, 0, new Integer(smallerSonOfSmallerLabel));
+						break;
+
+					default:
+						break;
 					}
 				}
-			return cc;
+			}
+		}
+		view.setAllCCImage(ccIm.toBufferedImageBW(0));
+		// second pass
+		for (int y=1; y<h; y++){
+			for (int x=1; x<w; x++){
+				if (targetBinaryImage.getValueAt(x, y, channelId)==1){
+					int label = labelGraph.get((int) ccIm.getValueAt(x, y, 0));
+					ccIm.setValueAt(x, y, 0, label);
+				}
+			}
+		}
+		view.setLargestCCImage(ccIm.toBufferedImageBW(0));
+
+		return ccIm;
 	}
+	public int getSmallerSon(List<Integer> graphLabel, int pos){
+		if (graphLabel.get(pos).intValue() != pos){
+			return getSmallerSon(graphLabel, graphLabel.get(pos).intValue() );
+		}
+		return graphLabel.get(pos).intValue();
+	}
+
+	public void setAllSon(List<Integer> graphLabel, int pos, int label){
+		if (graphLabel.get(pos).intValue() != pos){
+			setAllSon(graphLabel, graphLabel.get(pos).intValue(), label);
+		}
+		graphLabel.set(pos, new Integer(label));
+	}
+
+
 }
