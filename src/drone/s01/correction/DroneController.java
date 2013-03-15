@@ -47,7 +47,7 @@ public class DroneController{
 			float vertical_speed =  (float) verticalAndRotationalTargetSpeed.y;
 			float angular_speed = (float) verticalAndRotationalTargetSpeed.x;
 
-			drone.move3D((int)(100 *left_right_tilt), (int)(100 *front_back_tilt), (int)(100 *vertical_speed), (int)(100 *angular_speed));
+			drone.move3D((int)(100 *-front_back_tilt), (int)(100 *-left_right_tilt), (int)(100 *-vertical_speed), (int)(100 *-angular_speed));
 
 		}
 
